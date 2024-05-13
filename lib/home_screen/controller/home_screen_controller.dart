@@ -10,6 +10,7 @@ class MyHomeScreenController extends ChangeNotifier {
   List<Fibonacci> listFibonacci = [];
   int? highlightedIndex;
   ScrollController scrollController = ScrollController();
+  ScrollController bottomSheetScrollController = ScrollController();
 
   int fibonacci(int n) {
     if (n <= 1) return n;
@@ -74,7 +75,7 @@ class MyHomeScreenController extends ChangeNotifier {
   }
 
   void scrollToHighlightedIndex() {
-    if (highlightedIndex != null) {
+    if (highlightedIndex != null && listFibonacci.length >= 7) {
       scrollController.animateTo(
         highlightedIndex! * 50.0,
         duration: Duration(milliseconds: 500),
@@ -92,27 +93,49 @@ class MyHomeScreenController extends ChangeNotifier {
     Navigator.pop(context, tappedItem);
   }
 
-  void showBottomSheet(BuildContext context, int index,
-      String? clickedSymbol) {
+  void showBottomSheet(BuildContext context, int index, String? clickedSymbol) {
     List<Fibonacci> displayList =
         bottomSheetList.where((item) => item.symbol == clickedSymbol).toList();
-    displayList.sort((a, b) => a.number.compareTo(b.number));
+    displayList.sort((a, b) => a.index.compareTo(b.index));
 
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return ListView.builder(
-          itemCount: displayList.length,
-          itemBuilder: (context, index) {
-            IconData iconData = getIconFromSymbol(displayList[index].symbol);
-            bool isLatestValue = displayList[index] == bottomSheetList.last;
-            return ListTile(
-              tileColor: isLatestValue ? Colors.green : null,
-              title: Text(
-                'Index: ${displayList[index].index}, Number: ${displayList[index].number}',
-              ),
-              trailing: Icon(iconData),
-              onTap: () => handleItemTap(displayList[index]),
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              int latestItemIndex = displayList.indexOf(bottomSheetList.last);
+              double itemHeight = 50.0; 
+              double viewHeight = MediaQuery.of(context).size.height * 0.5; 
+              double spaceHightLight =  100.0; 
+
+              if (latestItemIndex * itemHeight > viewHeight - spaceHightLight) {
+                double scrollOffset =(latestItemIndex - (viewHeight ~/ itemHeight) + 2) * itemHeight;
+                bottomSheetScrollController.animateTo(
+                  scrollOffset,
+                  duration: Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                );
+              }
+            });
+
+            return ListView.builder(
+              controller: bottomSheetScrollController,
+              itemCount: displayList.length,
+              itemBuilder: (context, index) {
+                IconData iconData =
+                    getIconFromSymbol(displayList[index].symbol);
+                bool isLatestValue = displayList[index] == bottomSheetList.last;
+
+                return ListTile(
+                  tileColor: isLatestValue ? Colors.green : null,
+                  title: Text(
+                    'Index: ${displayList[index].index}, Number: ${displayList[index].number}',
+                  ),
+                  trailing: Icon(iconData),
+                  onTap: () => handleItemTap(displayList[index]),
+                );
+              },
             );
           },
         );
